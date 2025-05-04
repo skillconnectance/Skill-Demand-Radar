@@ -1,62 +1,107 @@
 import streamlit as st
-import time
-from pytrends.request import TrendReq
 import pandas as pd
-import plotly.express as px
-import random
+import plotly.graph_objects as go
+import altair as alt
+from pytrends.request import TrendReq
+import time
 
-# Function to fetch trends with retry logic
-def fetch_trends(skills, retries=5):
-    pytrends = TrendReq(hl="en-US", tz=4)
-    
-    for attempt in range(retries):
-        try:
-            pytrends.build_payload(skills, geo='AE', timeframe='now 7-d')
-            time.sleep(5 + random.uniform(1, 3))  # Sleep to avoid hitting rate limit
-            
-            # Fetch trend data
-            trends_data = pytrends.interest_over_time()
+# ----------------------------
+# CONFIGURATION
+# ----------------------------
+st.set_page_config(page_title="Skill Demand Radar", layout="wide")
+st.title("📡 Skill Demand Radar (Live from Google Trends)")
+st.markdown("Trends shown below are based on real-time Google search interest in the UAE region.")
 
-            if trends_data.empty:
-                st.error("No trend data returned.")
-            else:
-                return trends_data
-        except Exception as e:
-            if attempt == retries - 1:
-                st.error(f"Failed after {retries} attempts. Error: {e}")
-                return None
-            else:
-                st.warning(f"Attempt {attempt + 1} failed, retrying...")
-                time.sleep(10 * (2 ** attempt))  # Exponential backoff
+# ----------------------------
+# CATEGORY & SKILL MAPPING
+# ----------------------------
+skill_categories = {
+    "Technical Skills": ["Python", "Java", "Data Analysis", "Cybersecurity"],
+    "Soft Skills": ["Communication", "Leadership", "Teamwork", "Problem Solving"],
+    "Business & Management": ["Project Management", "Strategic Planning", "Marketing"],
+    "Creative Skills": ["Graphic Design", "Video Editing", "UX Design"],
+    "Marketing Skills": ["SEO", "Digital Marketing", "Branding"],
+    "Data Science": ["Machine Learning", "Data Visualization", "SQL"],
+    "Customer Service": ["Customer Support", "Empathy", "CRM"],
+    "Sales": ["Negotiation", "Lead Generation", "CRM Software"],
+    # You can add more categories and skills here
+}
 
-# List of skills (already provided by you)
-skills = [
-    "Python", "Java", "Cloud Computing", "Cybersecurity", "Data Analysis", 
-    "SEO", "Digital Marketing", "Machine Learning", "AI", "Project Management",
-    "Communication", "Leadership", "Teamwork", "Problem Solving", "Time Management",
-    "Emotional Intelligence", "Adaptability", "Negotiation", "CRM Software", "Sales Strategy",
-    "Graphic Design", "UX/UI Design", "SEO", "SEM", "Content Marketing", "Branding"
-]
+# ----------------------------
+# SELECT CATEGORY
+# ----------------------------
+selected_category = st.selectbox("Choose a Skill Category", list(skill_categories.keys()))
+skills = skill_categories[selected_category]
 
-# Fetch the trends data
-trends_data = fetch_trends(skills)
+# ----------------------------
+# GET GOOGLE TRENDS DATA
+# ----------------------------
+pytrends = TrendReq(hl="en-US", tz=4)
 
-# Display the trend data as a chart
-if trends_data is not None:
-    st.subheader('Google Trends Data')
-    st.write(trends_data)
+try:
+    pytrends.build_payload(skills, geo='AE', timeframe='now 7-d')
+    trends_data = pytrends.interest_over_time()
 
-    # Plot the trends as a line chart
-    st.write("Trends Over Time")
-    st.line_chart(trends_data)
+    if trends_data.empty:
+        st.error("No trend data returned.")
+    else:
+        # Prepare trend scores
+        latest_trends = trends_data.iloc[-1][skills].sort_values(ascending=False)
+        trend_df = pd.DataFrame({
+            "Skill": latest_trends.index,
+            "Score": latest_trends.values
+        })
 
-    # Optionally, you can show the trends as a bar chart
-    st.write("Bar Chart for Trends")
-    trends_data_mean = trends_data.mean()
-    bar_chart = trends_data_mean.sort_values(ascending=False).head(10)
-    st.bar_chart(bar_chart)
+        # ----------------------------
+        # CHART TYPE SELECTOR
+        # ----------------------------
+        chart_type = st.radio("Select Visualization Type", ["Radar", "Bar", "Pie"], horizontal=True)
 
-    # Plot as a pie chart
-    st.write("Pie Chart for Top Skills")
-    pie_chart = px.pie(names=bar_chart.index, values=bar_chart.values, title="Top Skills")
-    st.plotly_chart(pie_chart)
+        # ----------------------------
+        # DISPLAY: GRID
+        # ----------------------------
+        col1, col2 = st.columns([1, 2])
+
+        with col1:
+            st.subheader("🔍 Top Skills by Demand")
+            st.dataframe(trend_df, use_container_width=True)
+
+        with col2:
+            if chart_type == "Bar":
+                st.subheader("📊 Bar Chart")
+                bar_chart = alt.Chart(trend_df).mark_bar().encode(
+                    x=alt.X("Skill", sort="-y"),
+                    y="Score",
+                    color="Skill"
+                ).properties(height=400)
+                st.altair_chart(bar_chart, use_container_width=True)
+
+            elif chart_type == "Pie":
+                st.subheader("🟠 Pie Chart")
+                pie_chart = alt.Chart(trend_df).mark_arc().encode(
+                    theta="Score",
+                    color="Skill"
+                ).properties(height=400)
+                st.altair_chart(pie_chart, use_container_width=True)
+
+            elif chart_type == "Radar":
+                st.subheader("📡 Radar Chart")
+                fig = go.Figure(data=go.Scatterpolar(
+                    r=trend_df["Score"],
+                    theta=trend_df["Skill"],
+                    fill='toself',
+                    marker=dict(color="royalblue")
+                ))
+                fig.update_layout(
+                    polar=dict(radialaxis=dict(visible=True)),
+                    showlegend=False,
+                    height=450
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+        with st.expander("Show raw trend data"):
+            st.write(trends_data)
+
+except Exception as e:
+    st.error("Failed to fetch real-time Google Trends data.")
+    st.error(f"Error: {e}")
