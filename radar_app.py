@@ -53,3 +53,4 @@ st.plotly_chart(fig, use_container_width=True)
 # Optional: Show raw data
 with st.expander("🔍 Show raw trend data"):
     st.dataframe(skill_scores.sort_values(ascending=False))
+Update radar_app with new features    
