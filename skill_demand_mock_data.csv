@@ -1,0 +1,26 @@
+Industry,Skill,DemandScore,Region
+IT,Python,88,UAE
+IT,Cloud Computing,82,Saudi Arabia
+IT,Cybersecurity,91,UAE
+IT,Data Science,86,Qatar
+IT,Machine Learning,84,Kuwait
+Marketing,SEO,77,UAE
+Marketing,Digital Advertising,73,Qatar
+Marketing,Content Strategy,68,Saudi Arabia
+Marketing,Social Media Marketing,80,UAE
+Marketing,Email Marketing,65,Oman
+Finance,Excel,83,UAE
+Finance,Financial Modeling,76,Qatar
+Finance,Risk Analysis,70,Kuwait
+Finance,Blockchain for Finance,69,Saudi Arabia
+Finance,Auditing Standards,67,UAE
+Healthcare,Telemedicine,74,UAE
+Healthcare,Clinical Data Analysis,72,Qatar
+Healthcare,Medical Coding,65,Saudi Arabia
+Healthcare,EMR Systems,70,Kuwait
+Healthcare,Health Informatics,68,Oman
+Engineering,AutoCAD,79,UAE
+Engineering,3D Modeling,74,Qatar
+Engineering,Structural Analysis,72,Saudi Arabia
+Engineering,Six Sigma,76,UAE
+Engineering,Project Management,81,Kuwait
