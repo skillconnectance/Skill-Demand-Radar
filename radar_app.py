@@ -4,6 +4,28 @@ import plotly.graph_objects as go
 import altair as alt
 from pytrends.request import TrendReq
 import time
+import random
+from pytrends.request import TrendReq
+
+# Create a function to fetch trends with backoff
+def fetch_trends_with_backoff(skill, retries=5, backoff_factor=2):
+    pytrends = TrendReq(hl='en-US', tz=360)
+
+    for i in range(retries):
+        try:
+            pytrends.build_payload([skill], geo='US', timeframe='now 7-d')
+            return pytrends.interest_over_time()
+        except Exception as e:
+            print(f"Attempt {i+1} failed: {e}")
+            if i == retries - 1:
+                raise
+            sleep_time = backoff_factor ** i + random.uniform(0, 1)  # Exponential backoff with jitter
+            print(f"Retrying in {sleep_time:.2f} seconds...")
+            time.sleep(sleep_time)
+
+# Fetch trends for a specific skill with retries
+skill = "Python"
+trends = fetch_trends_with_backoff(skill)
 
 # ----------------------------
 # CONFIGURATION
