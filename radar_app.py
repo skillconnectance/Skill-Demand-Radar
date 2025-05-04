@@ -1,58 +1,62 @@
 import streamlit as st
+import time
+from pytrends.request import TrendReq
 import pandas as pd
 import plotly.express as px
-from pytrends.request import TrendReq
-import json
-import time
+import random
 
-st.set_page_config(page_title="Skill Demand Radar", layout="wide")
+# Function to fetch trends with retry logic
+def fetch_trends(skills, retries=5):
+    pytrends = TrendReq(hl="en-US", tz=4)
+    
+    for attempt in range(retries):
+        try:
+            pytrends.build_payload(skills, geo='AE', timeframe='now 7-d')
+            time.sleep(5 + random.uniform(1, 3))  # Sleep to avoid hitting rate limit
+            
+            # Fetch trend data
+            trends_data = pytrends.interest_over_time()
 
-st.title("📡 Skill Demand Radar (Live from Google Trends)")
-st.write("Trends shown below are based on real-time Google search interest in the UAE region.")
+            if trends_data.empty:
+                st.error("No trend data returned.")
+            else:
+                return trends_data
+        except Exception as e:
+            if attempt == retries - 1:
+                st.error(f"Failed after {retries} attempts. Error: {e}")
+                return None
+            else:
+                st.warning(f"Attempt {attempt + 1} failed, retrying...")
+                time.sleep(10 * (2 ** attempt))  # Exponential backoff
 
-# Load skill categories
-with open("skill_categories.json") as f:
-    skill_data = json.load(f)
+# List of skills (already provided by you)
+skills = [
+    "Python", "Java", "Cloud Computing", "Cybersecurity", "Data Analysis", 
+    "SEO", "Digital Marketing", "Machine Learning", "AI", "Project Management",
+    "Communication", "Leadership", "Teamwork", "Problem Solving", "Time Management",
+    "Emotional Intelligence", "Adaptability", "Negotiation", "CRM Software", "Sales Strategy",
+    "Graphic Design", "UX/UI Design", "SEO", "SEM", "Content Marketing", "Branding"
+]
 
-categories = list(skill_data.keys())
-selected_category = st.selectbox("Choose Skill Category", categories)
+# Fetch the trends data
+trends_data = fetch_trends(skills)
 
-skills = skill_data[selected_category]
+# Display the trend data as a chart
+if trends_data is not None:
+    st.subheader('Google Trends Data')
+    st.write(trends_data)
 
-# Initialize Pytrends
-pytrends = TrendReq(hl='en-US', tz=360)
-region = 'AE'  # United Arab Emirates
+    # Plot the trends as a line chart
+    st.write("Trends Over Time")
+    st.line_chart(trends_data)
 
-# Fetch interest data
-results = {}
-st.info("Fetching data from Google Trends...")
+    # Optionally, you can show the trends as a bar chart
+    st.write("Bar Chart for Trends")
+    trends_data_mean = trends_data.mean()
+    bar_chart = trends_data_mean.sort_values(ascending=False).head(10)
+    st.bar_chart(bar_chart)
 
-for skill in skills:
-    try:
-        pytrends.build_payload([skill], cat=0, timeframe='now 7-d', geo=region, gprop='')
-        df = pytrends.interest_over_time()
-        if not df.empty:
-            score = df[skill].mean()
-            results[skill] = round(score, 2)
-        time.sleep(1)
-    except Exception as e:
-        st.error(f"Failed for {skill}: {e}")
-
-if results:
-    df = pd.DataFrame.from_dict(results, orient='index', columns=['Trend Score']).reset_index()
-    df.rename(columns={'index': 'Skill'}, inplace=True)
-    top_n = st.slider("Select Top N Skills", 3, len(df), 5)
-    df = df.sort_values("Trend Score", ascending=False).head(top_n)
-
-    # Radar chart
-    fig = px.line_polar(df, r='Trend Score', theta='Skill', line_close=True,
-                        title=f"Top {top_n} Trending Skills in {selected_category}",
-                        color_discrete_sequence=['#00BFFF'])
-    fig.update_traces(fill='toself')
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("No data available for the selected category.")
-
-# Raw data
-with st.expander("🔍 Show raw trend data"):
-    st.dataframe(df)
+    # Plot as a pie chart
+    st.write("Pie Chart for Top Skills")
+    pie_chart = px.pie(names=bar_chart.index, values=bar_chart.values, title="Top Skills")
+    st.plotly_chart(pie_chart)
