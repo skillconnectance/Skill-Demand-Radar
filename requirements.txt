@@ -32,6 +32,7 @@ smmap==5.0.2
 streamlit==1.45.0
 tenacity==9.1.2
 toml==0.10.2
+pytrends
 tornado==6.4.2
 typing_extensions==4.13.2
 tzdata==2025.2
