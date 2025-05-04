@@ -1,60 +1,55 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objs as go
+from pytrends.request import TrendReq
 
-# Load data
-df = pd.read_csv("skill_demand_mock_data.csv")
+# Page config
+st.set_page_config(page_title="Skill Demand Radar (Live)", layout="wide")
 
-st.title("📊 Skill Demand Radar - GCC Region")
+# Title
+st.title("📡 Skill Demand Radar (Live from Google Trends)")
+st.markdown("Trends shown below are based on real-time Google search interest in the UAE region.")
 
-# Sidebar filters
-region = st.sidebar.multiselect("Filter by Region", options=df["Region"].unique(), default=df["Region"].unique())
-industry = st.sidebar.multiselect("Filter by Industry", options=df["Industry"].unique(), default=df["Industry"].unique())
+# Step 1: Define skills and fetch trends
+skills = ['Data Science', 'AI', 'Cybersecurity', 'Cloud Computing', 'Blockchain', 'Digital Marketing', 'UI UX Design']
 
-# Filter data
-filtered_df = df[(df["Region"].isin(region)) & (df["Industry"].isin(industry))]
+try:
+    pytrends = TrendReq(hl='en-US', tz=300)
+    pytrends.build_payload(skills, cat=0, timeframe='now 7-d', geo='AE')  # AE = UAE
 
-# Show table
-st.subheader("Filtered Skills")
-st.dataframe(filtered_df)
+    trends = pytrends.interest_over_time()
+    if not trends.empty:
+        trends = trends.drop(columns='isPartial')
+        skill_scores = trends.iloc[-1]  # Get most recent data point
+    else:
+        st.warning("⚠️ No trend data received. Displaying default scores.")
+        skill_scores = pd.Series([60, 70, 65, 80, 50, 75, 55], index=skills)
 
-# Bar chart
-fig = px.bar(filtered_df, x="Skill", y="DemandScore", color="Industry", title="Skill Demand by Score")
-st.plotly_chart(fig)
+except Exception as e:
+    st.error("Failed to fetch real-time Google Trends data.")
+    st.code(str(e))
+    skill_scores = pd.Series([60, 70, 65, 80, 50, 75, 55], index=skills)
 
-import plotly.graph_objects as go
+# Step 2: Radar chart
+fig = go.Figure()
 
-# Data for Radar chart (example)
-skills = ["Data Science", "AI", "Cloud Computing", "Digital Marketing", "Cybersecurity"]
-scores = [85, 90, 80, 70, 75]  # Demand scores
-
-# Create Radar chart
-fig = go.Figure(data=go.Scatterpolar(
-    r=scores,
-    theta=skills,
+fig.add_trace(go.Scatterpolar(
+    r=skill_scores.values.tolist() + [skill_scores.values[0]],  # close the loop
+    theta=skill_scores.index.tolist() + [skill_scores.index[0]],
     fill='toself',
-    name='Demand Scores'
+    name='Skill Demand'
 ))
 
 fig.update_layout(
     polar=dict(
-        radialaxis=dict(
-            visible=True,
-            range=[0, 100]  # Score range
-        )
+        radialaxis=dict(visible=True, range=[0, 100])
     ),
-    showlegend=False
+    showlegend=False,
+    title="Real-Time Skill Demand in UAE (Last 7 Days)"
 )
 
-# Show radar chart
-st.plotly_chart(fig)
+st.plotly_chart(fig, use_container_width=True)
 
-top_n = st.slider("Top N Skills", 1, len(skills), 5)
-
-# Sort skills by score and show the top N
-top_skills = sorted(zip(skills, scores), key=lambda x: x[1], reverse=True)[:top_n]
-top_skills_df = pd.DataFrame(top_skills, columns=["Skill", "DemandScore"])
-
-# Display top N skills
-st.write("Top Skills by Demand Score:")
-st.dataframe(top_skills_df)
+# Optional: Show raw data
+with st.expander("🔍 Show raw trend data"):
+    st.dataframe(skill_scores.sort_values(ascending=False))
