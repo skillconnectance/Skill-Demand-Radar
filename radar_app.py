@@ -1,56 +1,34 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objs as go
+import plotly.express as px
 from pytrends.request import TrendReq
+import time
 
-# Page config
-st.set_page_config(page_title="Skill Demand Radar (Live)", layout="wide")
+st.set_page_config(page_title="Skill Demand Radar", layout="centered")
 
-# Title
 st.title("📡 Skill Demand Radar (Live from Google Trends)")
-st.markdown("Trends shown below are based on real-time Google search interest in the UAE region.")
+st.caption("Trends shown below are based on real-time Google search interest in the UAE region.")
 
-# Step 1: Define skills and fetch trends
-skills = ['Data Science', 'AI', 'Cybersecurity', 'Cloud Computing', 'Blockchain', 'Digital Marketing', 'UI UX Design']
+# Define skills of interest
+skills = ["Data Science", "Digital Marketing", "AI", "Cloud Computing", "Cybersecurity", "UI UX", "Blockchain", "Project Management"]
 
+# Initialize pytrends with retry + delay
+pytrends = TrendReq(hl='en-US', tz=300, retries=3, backoff_factor=0.3)
+
+# Try to fetch Google Trends data
 try:
-    pytrends = TrendReq(hl='en-US', tz=300)
-    pytrends.build_payload(skills, cat=0, timeframe='now 7-d', geo='AE')  # AE = UAE
+    time.sleep(3)  # prevent hammering the API
+    pytrends.build_payload(skills, geo='AE')
+    trends_df = pytrends.interest_over_time()
 
-    trends = pytrends.interest_over_time()
-    if not trends.empty:
-        trends = trends.drop(columns='isPartial')
-        skill_scores = trends.iloc[-1]  # Get most recent data point
-    else:
-        st.warning("⚠️ No trend data received. Displaying default scores.")
-        skill_scores = pd.Series([60, 70, 65, 80, 50, 75, 55], index=skills)
+    if trends_df.empty:
+        raise Exception("Empty data received from Google Trends.")
+
+    trends_latest = trends_df.iloc[-1][skills].sort_values(ascending=False)
+    st.success("✅ Fetched real-time data from Google Trends (UAE).")
 
 except Exception as e:
-    st.error("Failed to fetch real-time Google Trends data.")
-    st.code(str(e))
-    skill_scores = pd.Series([60, 70, 65, 80, 50, 75, 55], index=skills)
+    st.error(f"❌ Failed to fetch real-time Google Trends data.\n\nUsing fallback data instead.\n\nError: {str(e)}")
+    trends_latest = pd.read_csv("fallback_trends.csv", index_col=0)["score"]
 
-# Step 2: Radar chart
-fig = go.Figure()
-
-fig.add_trace(go.Scatterpolar(
-    r=skill_scores.values.tolist() + [skill_scores.values[0]],  # close the loop
-    theta=skill_scores.index.tolist() + [skill_scores.index[0]],
-    fill='toself',
-    name='Skill Demand'
-))
-
-fig.update_layout(
-    polar=dict(
-        radialaxis=dict(visible=True, range=[0, 100])
-    ),
-    showlegend=False,
-    title="Real-Time Skill Demand in UAE (Last 7 Days)"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-# Optional: Show raw data
-with st.expander("🔍 Show raw trend data"):
-    st.dataframe(skill_scores.sort_values(ascending=False))
-Update radar_app with new features    
+# ---
