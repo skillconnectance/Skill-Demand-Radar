@@ -1,19 +1,24 @@
 import streamlit as st
-import pandas as pd
+from utils.skill_utils import load_skill_data, match_user_skills
 
-@st.cache_data
-def load_data_from_gdrive(file_id):
-    url = f"https://drive.google.com/uc?id={1XicvrF83jmLw45emfjiRy1eBs7wxScIH}"
-    return pd.read_csv(url, low_memory=False)
+st.set_page_config(page_title="Skill Demand Radar", layout="centered")
 
-# Replace this with your actual file ID
-file_id = "1XicvrF83jmLw45emfjiRy1eBs7wxScIH"
+st.title("📊 Skill Demand Radar")
+st.write("Enter your desired skills to see their classification.")
 
-st.title("Load CSV from Google Drive")
+# Step 1: Input
+user_input = st.text_input("🔍 Enter skills to learn (comma-separated):", placeholder="e.g., Python, Communication, Excel")
 
-try:
-    df = load_data_from_gdrive(1XicvrF83jmLw45emfjiRy1eBs7wxScIH)
-    st.success("Data loaded successfully!")
-    st.dataframe(df.head(20))  # Show top 20 rows
-except Exception as e:
-    st.error(f"Failed to load data: {e}")
+# Step 2: Load dataset
+skill_df = load_skill_data()
+
+# Step 3: Show matching results
+if user_input:
+    user_skills = [skill.strip() for skill in user_input.split(",")]
+    result_df = match_user_skills(user_skills, skill_df)
+
+    if not result_df.empty:
+        st.success(f"✅ Found {len(result_df)} matching skills.")
+        st.dataframe(result_df)
+    else:
+        st.warning("❌ No matching skills found in dataset.")
