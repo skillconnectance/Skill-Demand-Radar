@@ -6,9 +6,12 @@ def load_skill_data(skills_path, occupation_path):
     return skills_df, occupations_df
 
 def get_top_skills_by_importance(skills_df, threshold=3.5):
-    # Filters high-importance skills
-    top_skills = skills_df[skills_df["Scale"] == "IM"]  # Importance
+    # Filter for Importance scores (Scale ID = 'IM')
+    top_skills = skills_df[skills_df["Scale ID"] == "IM"]
+    
+    # Filter based on threshold
     top_skills = top_skills[top_skills["Data Value"] >= threshold]
+    
     return top_skills
 
 def get_skill_counts(top_skills):
