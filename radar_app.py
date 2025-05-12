@@ -1,28 +1,36 @@
 import streamlit as st
 import pandas as pd
-from utils.radar_utils import load_skill_data, get_top_skills_by_importance, get_skill_counts
 
-st.set_page_config(page_title="Skill Demand Radar", layout="wide")
+# Load your data (assume O*NET or your preprocessed skill trends)
+@st.cache_data
+def load_data():
+    try:
+        df = pd.read_excel("data/skill_trends.xlsx")  # Or CSV if needed
+    except:
+        st.error("Failed to load skill data file.")
+        return None
+    return df
 
-st.title("📊 Skill Demand Radar (Static Analysis)")
-st.write("Shows most important skills across occupations based on O*NET data.")
+# Input: Desired skills from user (simulate for now)
+desired_skills = st.text_input("Enter desired skills to learn (comma separated):", "Python, Communication")
+
+# Clean and split
+skill_list = [skill.strip().lower() for skill in desired_skills.split(",") if skill.strip()]
 
 # Load data
-skills_path = "data/Skills.xlsx"
-occupation_path = "data/Occupation Data.xlsx"
+df = load_data()
+if df is not None:
+    # Normalize skill column
+    df["Skill_Lower"] = df["Skill"].str.lower()
 
-try:
-    skills_df, occupation_df = load_skill_data(skills_path, occupation_path)
+    # Filter
+    filtered_df = df[df["Skill_Lower"].isin(skill_list)]
 
-    # Filter high-importance skills
-    top_skills = get_top_skills_by_importance(skills_df)
-    skill_counts = get_skill_counts(top_skills)
+    if filtered_df.empty:
+        st.warning("No matching data found for the skills you entered.")
+    else:
+        st.success(f"Found {len(filtered_df)} relevant skill records.")
+        st.dataframe(filtered_df[["Skill", "Industry", "TrendScore"]])
 
-    st.subheader("🔥 Top In-Demand Skills (by importance score ≥ 3.5)")
-    st.dataframe(skill_counts.head(20))
-
-    st.bar_chart(skill_counts.head(10).set_index("Skill"))
-
-except FileNotFoundError:
-    st.error("Make sure 'Skills.xlsx' and 'Occupation Data.xlsx' are inside the 'data' folder.")
-
+        # Optional bar chart
+        st.bar_chart(filtered_df.set_index("Skill")["TrendScore"])
