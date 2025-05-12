@@ -1,6 +1,6 @@
 import pandas as pd
 
-def load_skill_data(filepath="data/all_skill_and_non_skill.csv"):
+def load_skill_data(filepath="data/all_data_skill_and_non_skill.csv"):
     df = pd.read_csv(filepath)
     df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
     return df
