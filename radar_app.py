@@ -1,36 +1,39 @@
 import streamlit as st
 import pandas as pd
 
-# Load your data (assume O*NET or your preprocessed skill trends)
+# Load Data
 @st.cache_data
 def load_data():
-    try:
-        df = pd.read_excel("data/skill_trends.xlsx")  # Or CSV if needed
-    except:
-        st.error("Failed to load skill data file.")
-        return None
+    df = pd.read_csv('data/linkedin_skills.csv')
+    df['skills'] = df['skills'].fillna('').str.lower()
     return df
 
-# Input: Desired skills from user (simulate for now)
-desired_skills = st.text_input("Enter desired skills to learn (comma separated):", "Python, Communication")
-
-# Clean and split
-skill_list = [skill.strip().lower() for skill in desired_skills.split(",") if skill.strip()]
-
-# Load data
 df = load_data()
-if df is not None:
-    # Normalize skill column
-    df["Skill_Lower"] = df["Skill"].str.lower()
 
-    # Filter
-    filtered_df = df[df["Skill_Lower"].isin(skill_list)]
+# Title
+st.title("🧠 Skill Demand Radar (Real World)")
 
-    if filtered_df.empty:
-        st.warning("No matching data found for the skills you entered.")
-    else:
-        st.success(f"Found {len(filtered_df)} relevant skill records.")
-        st.dataframe(filtered_df[["Skill", "Industry", "TrendScore"]])
+# Input Skills
+user_input = st.text_input("Enter desired skills (comma-separated):", "Python, Excel")
+input_skills = [skill.strip().lower() for skill in user_input.split(',') if skill.strip()]
 
-        # Optional bar chart
-        st.bar_chart(filtered_df.set_index("Skill")["TrendScore"])
+# Match and Count
+matched_rows = df[df['skills'].apply(lambda x: any(skill in x for skill in input_skills))]
+
+# Skill Frequencies
+skill_counts = {}
+for skills in matched_rows['skills']:
+    for skill in skills.split(','):
+        skill = skill.strip()
+        if skill:
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+
+# Display
+st.subheader("🔍 Skill Demand (based on job listings)")
+st.write(f"Total job listings matched: {len(matched_rows)}")
+
+if skill_counts:
+    sorted_skills = dict(sorted(skill_counts.items(), key=lambda item: item[1], reverse=True))
+    st.bar_chart(pd.Series(sorted_skills))
+else:
+    st.warning("No matches found. Try with more common skill names.")
