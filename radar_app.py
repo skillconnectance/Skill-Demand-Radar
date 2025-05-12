@@ -1,24 +1,29 @@
+from pytrends.request import TrendReq
+import pandas as pd
 import streamlit as st
-from utils.skill_utils import load_skill_data, match_user_skills
+import time
 
-st.set_page_config(page_title="Skill Demand Radar", layout="centered")
+pytrends = TrendReq(hl='en-US', tz=360)
 
-st.title("📊 Skill Demand Radar")
-st.write("Enter your desired skills to see their classification.")
+def get_trend_data(keywords):
+    try:
+        pytrends.build_payload(keywords, cat=0, timeframe='today 3-m', geo='', gprop='')
+        data = pytrends.interest_over_time()
+        return data.drop(columns=['isPartial'])
+    except Exception as e:
+        return None
 
-# Step 1: Input
-user_input = st.text_input("🔍 Enter skills to learn (comma-separated):", placeholder="e.g., Python, Communication, Excel")
+st.title("📈 Skill Demand Radar (Trend View)")
 
-# Step 2: Load dataset
-skill_df = load_skill_data()
+skills_input = st.text_input("Enter skills to learn (comma-separated)", "Python, Excel")
+skills = [s.strip() for s in skills_input.split(',') if s.strip()]
 
-# Step 3: Show matching results
-if user_input:
-    user_skills = [skill.strip() for skill in user_input.split(",")]
-    result_df = match_user_skills(user_skills, skill_df)
-
-    if not result_df.empty:
-        st.success(f"✅ Found {len(result_df)} matching skills.")
-        st.dataframe(result_df)
+if st.button("Get Trends"):
+    if skills:
+        trend_data = get_trend_data(skills[:5])  # Limit to 5
+        if trend_data is not None and not trend_data.empty:
+            st.line_chart(trend_data)
+        else:
+            st.error("No trend data found or rate limited.")
     else:
-        st.warning("❌ No matching skills found in dataset.")
+        st.warning("Please enter at least one skill.")
