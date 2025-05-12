@@ -1,39 +1,19 @@
 import streamlit as st
 import pandas as pd
 
-# Load Data
 @st.cache_data
-def load_data():
-    df = pd.read_csv('data/linkedin_skills.csv')
-    df['skills'] = df['skills'].fillna('').str.lower()
-    return df
+def load_data_from_gdrive(file_id):
+    url = f"https://drive.google.com/uc?id={1XicvrF83jmLw45emfjiRy1eBs7wxScIH}"
+    return pd.read_csv(url, low_memory=False)
 
-df = load_data()
+# Replace this with your actual file ID
+file_id = "1XicvrF83jmLw45emfjiRy1eBs7wxScIH"
 
-# Title
-st.title("🧠 Skill Demand Radar (Real World)")
+st.title("Load CSV from Google Drive")
 
-# Input Skills
-user_input = st.text_input("Enter desired skills (comma-separated):", "Python, Excel")
-input_skills = [skill.strip().lower() for skill in user_input.split(',') if skill.strip()]
-
-# Match and Count
-matched_rows = df[df['skills'].apply(lambda x: any(skill in x for skill in input_skills))]
-
-# Skill Frequencies
-skill_counts = {}
-for skills in matched_rows['skills']:
-    for skill in skills.split(','):
-        skill = skill.strip()
-        if skill:
-            skill_counts[skill] = skill_counts.get(skill, 0) + 1
-
-# Display
-st.subheader("🔍 Skill Demand (based on job listings)")
-st.write(f"Total job listings matched: {len(matched_rows)}")
-
-if skill_counts:
-    sorted_skills = dict(sorted(skill_counts.items(), key=lambda item: item[1], reverse=True))
-    st.bar_chart(pd.Series(sorted_skills))
-else:
-    st.warning("No matches found. Try with more common skill names.")
+try:
+    df = load_data_from_gdrive(1XicvrF83jmLw45emfjiRy1eBs7wxScIH)
+    st.success("Data loaded successfully!")
+    st.dataframe(df.head(20))  # Show top 20 rows
+except Exception as e:
+    st.error(f"Failed to load data: {e}")
